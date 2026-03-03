@@ -213,4 +213,4 @@ Es el patrón recomendado por la documentación oficial de Playwright. Centraliz
 **7 de 10** casos automatizados + Auditoría de accesibilidad (4 páginas) + Validación de red + Cookies de sesión = **23 tests totales**.
 
 ---
-**Autora:** Adriana Martínez | Senior QA Engineer & Scrum Master
+**Autora:** Adriana Troche | Senior QA Engineer
