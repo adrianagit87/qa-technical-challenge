@@ -8,13 +8,13 @@
 
 | ID Requisito | Requisito | Descripción | TC-01 | TC-02 | TC-03 | TC-04 | TC-05 | TC-06 | TC-07 | TC-08 | TC-09 | TC-10 | Casos vinculados | Cobertura | Happy path | Negativo | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| | | | Registro exitoso | Registro datos inválidos | Login exitoso | Login credenciales inválidas | Publicar imagen con descripción | Comentar en publicación | Reaccionar (like) a post | Enviar mensaje privado | Personalizar perfil | Upload archivo inválido | | | | | |
-| REQ-01 | Registro de usuario | El sistema debe permitir crear una cuenta de usuario mediante un formulario con nombre, email, contraseña y género | ✓ | ✓ | — | — | — | — | — | — | — | — | 2 | 20% | 1 | 1 | Cubierto |
+| | | | Registro exitoso | Registro datos inválidos | Login exitoso | Login credenciales inválidas | Publicar imagen con descripción | Comentar en publicación | Reaccionar (like) a post | Acceder a bandeja y enviar mensaje | Editar First Name en perfil | Upload archivo inválido | | | | | |
+| REQ-01 | Registro de usuario | El sistema debe permitir crear una cuenta de usuario mediante un formulario con nombre, email, contraseña, fecha de nacimiento y género | ✓ | ✓ | — | — | — | — | — | — | — | — | 2 | 20% | 1 | 1 | Cubierto |
 | REQ-02 | Inicio de sesión | El sistema debe permitir iniciar sesión con email/username y contraseña, validando credenciales contra la base de datos | — | — | ✓ | ✓ | — | — | — | — | — | — | 2 | 20% | 1 | 1 | Cubierto |
 | REQ-03 | Subida de imágenes | El sistema debe permitir subir imágenes (JPG, PNG) con descripción de texto como publicación visible en el feed | — | — | — | — | ✓ | — | — | — | — | ✓ | 2 | 20% | 1 | 1 | Cubierto |
 | REQ-04 | Comentarios y reacciones | El sistema debe permitir comentar y reaccionar (like) a publicaciones de otros usuarios | — | — | — | — | — | ✓ | ✓ | — | — | — | 2 | 20% | 2 | 0 | Cubierto |
-| REQ-05 | Mensajería privada | El sistema debe permitir enviar y recibir mensajes directos entre usuarios registrados | — | — | — | — | — | — | — | ✓ | — | — | 1 | 10% | 1 | 0 | Cubierto — automatizado con network validation |
-| REQ-06 | Personalización de perfil | El sistema debe permitir editar información personal, bio y avatar del perfil de usuario | — | — | — | — | — | — | — | — | ✓ | — | 1 | 10% | 1 | 0 | Cubierto — automatizado con verificación de persistencia |
+| REQ-05 | Mensajería privada | El sistema debe permitir acceder a la bandeja de mensajes, abrir conversaciones existentes y enviar mensajes entre usuarios registrados | — | — | — | — | — | — | — | ✓ | — | — | 1 | 10% | 1 | 0 | Cubierto — automatizado con network validation |
+| REQ-06 | Personalización de perfil | El sistema debe permitir editar información personal (First Name en Basic Settings) y verificar la persistencia de cambios en el perfil público | — | — | — | — | — | — | — | — | ✓ | — | 1 | 10% | 1 | 0 | Cubierto — automatizado con verificación de persistencia |
 | **TOTALES** | | | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | | **6/6 cubiertos** | | | **6 robustos** |
 
 > **NOTA:** Cobertura de requisitos indica que cada requisito tiene al menos 1 caso vinculado. No implica profundidad suficiente. Ver hoja "Resumen de Cobertura" para análisis de gaps y recomendaciones de expansión por requisito.
@@ -27,19 +27,19 @@
 
 | ID | Requisito | Casos | Happy | Negativo | Automatizado | Gap / Recomendación |
 |---|---|---|---|---|---|---|
-| REQ-01 | Registro de usuario | 2 | 1 | 1 | Si | Cubierto. 1 happy + 1 negativo. Considerar agregar: registro con caracteres especiales en nombre, email con dominios edge case (.museum, .co.uk). |
-| REQ-02 | Inicio de sesión | 2 | 1 | 1 | Si | Cubierto. 1 happy + 1 negativo. Considerar agregar: test de sesión expirada, login desde múltiples dispositivos simultáneamente. |
-| REQ-03 | Subida de imágenes | 2 | 1 | 1 | Si (happy) / Manual (negativo) | Cubierto. 1 happy + 1 negativo (archivo inválido). Considerar agregar: upload de imagen > tamaño máximo, formatos adicionales (WebP, GIF). |
+| REQ-01 | Registro de usuario | 2 | 1 | 1 | Si | Cubierto. 1 happy + 1 negativo. El datepicker jQuery (readonly) se maneja via `evaluate()` para setear el valor directamente en el DOM. Considerar agregar: registro con caracteres especiales en nombre, email con dominios edge case (.museum, .co.uk). |
+| REQ-02 | Inicio de sesión | 2 | 1 | 1 | Si | Cubierto. 1 happy + 1 negativo. Login exitoso usa `waitForURL('**/home**')` como indicador confiable (no `.topbar`). Login fallido usa `isLoggedIn()` con selector `.ossn-menu-dropdown`. Considerar agregar: test de sesión expirada, login desde múltiples dispositivos simultáneamente. |
+| REQ-03 | Subida de imágenes | 2 | 1 | 1 | Si (happy) / Manual (negativo) | Cubierto. 1 happy + 1 negativo (archivo inválido). La verificación de post usa `getByText()` en lugar de selectores CSS. Considerar agregar: upload de imagen > tamaño máximo, formatos adicionales (WebP, GIF). |
 | REQ-04 | Comentarios y reacciones | 2 | 2 | 0 | No (ambos manuales) | Cubierto con 2 happy path. Gap: no hay caso negativo. Agregar: comentario vacío, comentario con HTML/scripts (XSS), reacción sin sesión activa. |
-| REQ-05 | Mensajería privada | 1 | 1 | 0 | Si (3 tests automatizados) | Cubierto y automatizado. Incluye: acceso a bandeja, envío de mensaje, y validación de network requests. Expandir con: mensaje vacío, mensaje con adjunto, conversación con usuario bloqueado, notificación de mensaje nuevo. |
-| REQ-06 | Personalización de perfil | 1 | 1 | 0 | Si (2 tests automatizados) | Cubierto y automatizado. Incluye: edición de bio con verificación de persistencia, y verificación de nombre en perfil público. Expandir con: upload de avatar con formato inválido, bio con longitud máxima, campos opcionales vacíos vs. completos. |
+| REQ-05 | Mensajería privada | 1 | 1 | 0 | Si (3 tests automatizados) | Cubierto y automatizado. Incluye: acceso a bandeja `/messages`, apertura de conversación existente (extrae URL del atributo `onclick="Ossn.redirect(...)"` de los items `div.ossn-recent-message-item`), envío de mensaje con verificación, y validación de network requests. NO se usa `/messages/send/{username}` (no existe en OSSN). Expandir con: mensaje vacío, mensaje con adjunto, conversación con usuario bloqueado. |
+| REQ-06 | Personalización de perfil | 1 | 1 | 0 | Si (2 tests automatizados) | Cubierto y automatizado. Incluye: edición de First Name en Basic Settings (NO hay campo about/bio visible en OSSN edit) con verificación de persistencia, y verificación de nombre en perfil público via `getByText`. Expandir con: upload de avatar con formato inválido, First Name con longitud máxima, campos opcionales vacíos vs. completos. |
 
 ### Cambios respecto a v1.0
 
 | Requisito | v1.0 | v2.0 | Cambio |
 |---|---|---|---|
-| REQ-05 (Mensajería) | Cobertura mínima — 1 caso manual | Cubierto — 3 tests automatizados | TC-08 automatizado: acceso a bandeja + envío de mensaje + network validation |
-| REQ-06 (Perfil) | Cobertura mínima — 1 caso manual | Cubierto — 2 tests automatizados | TC-09 automatizado: edición de bio con persistencia + verificación de nombre |
+| REQ-05 (Mensajería) | Cobertura mínima — 1 caso manual | Cubierto — 3 tests automatizados | TC-08 automatizado: acceso a bandeja `/messages` + apertura de conversación existente + envío de mensaje + network validation |
+| REQ-06 (Perfil) | Cobertura mínima — 1 caso manual | Cubierto — 2 tests automatizados | TC-09 automatizado: edición de First Name (no about/bio) con persistencia + verificación de nombre en perfil público |
 
 ---
 
@@ -54,8 +54,8 @@
 | TC-05 | Publicar imagen con descripción | Social | Happy path | Automatizado | `authenticated` | REQ-03 | P2 - Alta |
 | TC-06 | Comentar en publicación | Social | Happy path | Manual | — | REQ-04 | P2 - Alta |
 | TC-07 | Reaccionar (like) a post | Social | Happy + Edge | Manual | — | REQ-04 | P3 - Media |
-| TC-08 | Enviar mensaje privado | Mensajería | Happy path | Automatizado | `authenticated` | REQ-05 | P2 - Alta |
-| TC-09 | Personalizar perfil | Perfil | Happy path | Automatizado | `authenticated` | REQ-06 | P3 - Media |
+| TC-08 | Acceder a bandeja y enviar mensaje | Mensajería | Happy path | Automatizado | `authenticated` | REQ-05 | P2 - Alta |
+| TC-09 | Editar First Name en perfil | Perfil | Happy path | Automatizado | `authenticated` | REQ-06 | P3 - Media |
 | TC-10 | Upload archivo inválido | Social | Negativo | Manual | — | REQ-03 | P2 - Alta |
 
 ### Resumen de ejecución

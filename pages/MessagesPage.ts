@@ -1,21 +1,18 @@
 import { BasePage } from './BasePage';
 
 /**
- * MessagesPage: Page Object para mensajería privada en OSSN.
+ * MessagesPage: Page Object para mensajeria privada en OSSN.
  *
  * URL: /messages (bandeja de entrada con lista de conversaciones)
+ * URL: /messages/message/{username} (conversacion individual)
  *
- * Verificado contra OSSN demo real (marzo 2026):
- * - /messages muestra "Inbox (0)" con lista de conversaciones
- * - Cada conversación muestra: avatar, nombre, último mensaje, timestamp
- * - Click en una conversación abre el chat en la misma página
- * - NO hay botón "New Message" ni URL /messages/send/{username}
- * - Para enviar, se clickea una conversación existente y se escribe
+ * Estructura HTML verificada contra OSSN demo real (marzo 2026):
+ * - Container: .ossn-messages > .ossn-widget.messages-recent
+ * - Items: div.ossn-recent-message-item[data-guid][onclick="Ossn.redirect(...)"]
+ * - Onclick ejecuta: Ossn.redirect('messages/message/{username}')
+ * - Los items NO son <a> tags — son <div> con onclick
  */
 export class MessagesPage extends BasePage {
-  private readonly conversationItem = '.ossn-messages-list .ossn-message-item, .messages-inner a, .ossn-messages-container a';
-  private readonly messageTextarea = 'textarea, .message-input textarea, input[name="message"]';
-  private readonly sendButton = 'input[type="submit"], button[type="submit"], .btn-primary';
 
   async navigateToInbox(): Promise<void> {
     await this.navigateTo('/messages');
@@ -24,61 +21,80 @@ export class MessagesPage extends BasePage {
   }
 
   /**
-   * Abre una conversación existente para enviar un mensaje.
-   * En OSSN, la mensajería funciona clickeando en conversaciones del inbox.
-   *
-   * NOTA: `a[href*="message"]` matchea links del sidebar/topbar que están
-   * fuera del viewport. Usamos evaluate() para clickear solo en el content area.
+   * Abre la primera conversacion existente en el inbox.
+   * OSSN usa div.ossn-recent-message-item con onclick="Ossn.redirect(...)"
+   * Extraemos el username del onclick y navegamos directamente.
    */
   async openFirstConversation(): Promise<boolean> {
     await this.navigateToInbox();
 
-    // Buscar un elemento de conversación en el inbox.
-    // Las conversaciones muestran "X hours ago" — usamos eso para identificarlas.
-    // Evitar usar a[href*="message"] porque matchea el sidebar link fuera del viewport.
-    const clicked = await this.page.evaluate(() => {
-      // Buscar cualquier elemento en el content area que tenga un avatar (img)
-      // y esté posicionado debajo del topbar
-      const elements = document.querySelectorAll('a, div, li');
-      for (const el of elements) {
-        const rect = el.getBoundingClientRect();
-        const text = el.textContent || '';
-        // Conversaciones tienen timestamps ("hours ago", "minutes ago")
-        // y están en el content area (debajo del topbar y con tamaño razonable)
-        if (rect.top > 60 && rect.top < 400 && rect.height > 30 && rect.width > 200 &&
-            text.match(/\d+\s+(hours?|minutes?|days?|seconds?)\s+ago/)) {
-          (el as HTMLElement).click();
-          return true;
-        }
-      }
-      return false;
+    // Extraer la URL de la primera conversacion del atributo onclick
+    const messageUrl = await this.page.evaluate(() => {
+      const item = document.querySelector('.ossn-recent-message-item[onclick]');
+      if (!item) return null;
+      const onclick = item.getAttribute('onclick') || '';
+      // onclick es: Ossn.redirect('messages/message/username');
+      const match = onclick.match(/Ossn\.redirect\(['"](.+?)['"]\)/);
+      return match ? match[1] : null;
     });
 
-    if (clicked) {
+    if (messageUrl) {
+      // Navegar directamente a la URL de la conversacion
+      await this.navigateTo(`/${messageUrl}`);
       await this.page.waitForLoadState('domcontentloaded');
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(3000);
+      return true;
     }
-    return clicked;
+
+    // Fallback: click directo en el primer item
+    const firstItem = this.page.locator('.ossn-recent-message-item').first();
+    if (await firstItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await firstItem.click();
+      await this.page.waitForLoadState('domcontentloaded');
+      await this.page.waitForTimeout(3000);
+      return true;
+    }
+
+    return false;
   }
 
   /**
-   * Busca y llena el campo de mensaje con múltiples selectores fallback.
+   * Busca y llena el campo de mensaje.
    */
   async fillMessageText(text: string): Promise<boolean> {
-    const textarea = this.page.locator(this.messageTextarea).first();
-    if (await textarea.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await textarea.fill(text);
-      return true;
+    await this.page.waitForTimeout(1000);
+
+    const selectors = [
+      'textarea[name="message"]',
+      'textarea',
+      'input[name="message"]',
+    ];
+
+    for (const selector of selectors) {
+      const field = this.page.locator(selector).first();
+      if (await field.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await field.fill(text);
+        return true;
+      }
     }
     return false;
   }
 
   async clickSend(): Promise<void> {
-    const btn = this.page.locator(this.sendButton).first();
-    if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await btn.click();
-      await this.page.waitForLoadState('domcontentloaded');
-      await this.page.waitForTimeout(2000);
+    const selectors = [
+      'input[type="submit"]',
+      'button[type="submit"]',
+      '.btn-primary',
+    ];
+
+    for (const selector of selectors) {
+      const btn = this.page.locator(selector).first();
+      if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await btn.click();
+        await this.page.waitForLoadState('domcontentloaded');
+        await this.page.waitForTimeout(2000);
+        return;
+      }
     }
   }
 

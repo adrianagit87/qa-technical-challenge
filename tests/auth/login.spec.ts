@@ -21,15 +21,20 @@ test.describe('TC-03: Login exitoso', () => {
 
     await loginPage.login(DEMO_USER.username, DEMO_USER.password);
 
-    // Esperar redirección a /home — indicador confiable de login exitoso.
-    // NO usar .topbar porque OSSN la muestra en TODAS las páginas.
-    await page.waitForURL('**/home**', { timeout: 15000 });
+    // Esperar redireccion a /home — indicador confiable de login exitoso.
+    // OSSN demo puede ser lenta, usar timeout generoso.
+    try {
+      await page.waitForURL('**/home**', { timeout: 30000 });
+    } catch {
+      // Fallback: verificar que el feed cargo (OSSN ya redirigió pero lento)
+      await page.waitForSelector('#ossn-wall-form, .ossn-menu-dropdown', { timeout: 10000 });
+    }
 
     // Verificar URL final
     const currentUrl = page.url();
     expect(
       currentUrl,
-      'Después del login debe redirigir a /home (news feed)'
+      'Despues del login debe redirigir a /home (news feed)'
     ).toContain('/home');
 
     await page.screenshot({ path: 'evidencias/manual/TC-03-login-exitoso.png', fullPage: true });

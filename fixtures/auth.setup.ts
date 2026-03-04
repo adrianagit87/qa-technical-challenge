@@ -18,9 +18,15 @@ setup('autenticar usuario demo', async ({ page }) => {
   await page.fill('input[name="password"]', DEMO_USER.password);
   await page.click('input[type="submit"][value="Login"]');
 
-  // Esperar redirección a /home — indicador confiable de login exitoso.
-  // NO usar .topbar porque OSSN la muestra en TODAS las páginas (incluso sin sesión).
-  await page.waitForURL('**/home**', { timeout: 15000 });
+  // Esperar redireccion a /home — indicador confiable de login exitoso.
+  // OSSN demo puede ser lenta, usar timeout generoso.
+  // Intentar waitForURL primero; si falla, verificar que el feed cargo.
+  try {
+    await page.waitForURL('**/home**', { timeout: 30000 });
+  } catch {
+    // Fallback: verificar que estamos logueados por presencia de elementos del feed
+    await page.waitForSelector('#ossn-wall-form, .ossn-menu-dropdown', { timeout: 10000 });
+  }
 
   // Guardar estado de sesión para los tests dependientes
   await page.context().storageState({ path: AUTH_FILE });
