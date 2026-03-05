@@ -25,8 +25,7 @@ export class RegisterPage extends BasePage {
 
   async navigate(): Promise<void> {
     await this.navigateTo('/');
-    // NO usar networkidle aquí — OSSN hace requests de fondo indefinidas.
-    // Esperar a que el formulario de registro sea visible.
+    // NO usar networkidle — OSSN hace requests de fondo indefinidas
     await this.page.waitForSelector(this.firstNameInput, { timeout: 15000 });
   }
 
@@ -101,7 +100,6 @@ export class RegisterPage extends BasePage {
     await this.fillEmail(data.email);
     await this.fillEmailConfirmation(data.email);
 
-    // Generar username único si no se proporciona
     const username = data.username || `testqa_${Date.now()}`;
     await this.fillUsername(username);
 

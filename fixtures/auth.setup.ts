@@ -28,6 +28,5 @@ setup('autenticar usuario demo', async ({ page }) => {
     await page.waitForSelector('#ossn-wall-form, .ossn-menu-dropdown', { timeout: 10000 });
   }
 
-  // Guardar estado de sesión para los tests dependientes
   await page.context().storageState({ path: AUTH_FILE });
 });

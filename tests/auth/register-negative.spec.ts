@@ -32,14 +32,12 @@ test.describe('TC-02: Registro con datos invalidos', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForLoadState('load').catch(() => {});
 
-    // OSSN debe rechazar password < 5 chars y mostrar error
     const currentUrl = page.url();
     expect(
       currentUrl,
       'No debe redirigir a /home con password de 1 caracter'
     ).not.toContain('/home');
 
-    // Verificar que OSSN muestra el mensaje de error esperado
     const errorMessage = await registerPage.getErrorMessage();
     const pageText = await page.textContent('body') ?? '';
     const hasPasswordError =
@@ -57,7 +55,6 @@ test.describe('TC-02: Registro con datos invalidos', () => {
   test('debe rechazar registro con campos vacios', async ({ page, registerPage }) => {
     await registerPage.navigate();
 
-    // Intentar enviar formulario sin llenar campos
     await registerPage.acceptGDPR();
     await registerPage.clickCreateAccount();
 
@@ -93,14 +90,12 @@ test.describe('TC-02: Registro con datos invalidos', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForLoadState('load').catch(() => {});
 
-    // OSSN debe rechazar email sin formato valido
     const currentUrl = page.url();
     expect(
       currentUrl,
       'No debe crear cuenta con email invalido "not-an-email"'
     ).not.toContain('/home');
 
-    // Verificar que permanece en pagina de registro o muestra error
     const errorMessage = await registerPage.getErrorMessage();
     const stayedOnRegister = currentUrl.endsWith('/') || currentUrl.includes('register');
     expect(

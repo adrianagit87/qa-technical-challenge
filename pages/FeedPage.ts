@@ -29,7 +29,6 @@ export class FeedPage extends BasePage {
 
   async navigate(): Promise<void> {
     await this.navigateTo('/home');
-    // Esperar a que el formulario de post sea visible
     await this.page.waitForSelector(this.postTextarea, { timeout: 15000 }).catch(() => {});
   }
 

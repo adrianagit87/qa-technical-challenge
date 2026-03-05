@@ -50,11 +50,9 @@ test.describe('TC-09: Personalizar perfil', () => {
     await test.step('Intentar guardar y verificar respuesta del sistema', async () => {
       await profilePage.saveProfile();
 
-      // Capturar cualquier mensaje del sistema (error, restriccion, exito)
       const systemMessage = await profilePage.getSystemMessage();
 
       if (systemMessage) {
-        // El sistema mostro un mensaje — documentar como defecto
         test.info().annotations.push({
           type: 'defecto',
           description: `BUG-019: La demo de OSSN no permite editar el perfil del admin. `

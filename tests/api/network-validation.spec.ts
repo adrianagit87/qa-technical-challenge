@@ -48,11 +48,9 @@ test.describe('Validacion de Network Requests', () => {
       console.log(`  ${r.method} ${r.url} -> ${r.status}`);
     });
 
-    // Sin errores de servidor
     const serverErrors = requests.filter(r => r.status && r.status >= 500);
     expect(serverErrors.length, 'No debe haber errores 5xx durante el flujo de login').toBe(0);
 
-    // Debe haber al menos una request de auth
     expect(
       authRequests.length,
       'Debe haber al menos una request relacionada con autenticación'

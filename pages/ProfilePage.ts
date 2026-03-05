@@ -38,7 +38,6 @@ export class ProfilePage extends BasePage {
   async navigateToEditProfile(username = 'administrator'): Promise<void> {
     await this.navigateTo(`/u/${username}/edit`);
     await this.page.waitForLoadState('domcontentloaded');
-    // Esperar a que el formulario de edición cargue
     await this.page.locator(this.firstNameInput)
       .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
   }
@@ -117,7 +116,6 @@ export class ProfilePage extends BasePage {
       if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await btn.click();
         await this.page.waitForLoadState('domcontentloaded');
-        // Esperar respuesta del sistema (mensaje de éxito/error)
         await this.waitForSystemResponse();
         return;
       }

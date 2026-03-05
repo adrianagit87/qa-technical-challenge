@@ -60,7 +60,6 @@ test.describe('Auditoria de Accesibilidad (axe-core)', () => {
         fullPage: true,
       });
 
-      // Documentar TODAS las violaciones como hallazgos
       test.info().annotations.push({
         type: 'a11y',
         description: `${pageConfig.name}: ${results.violations.length} violaciones, ${results.passes.length} pasan`,

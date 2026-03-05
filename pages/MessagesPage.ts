@@ -41,10 +41,8 @@ export class MessagesPage extends BasePage {
     });
 
     if (messageUrl) {
-      // Navegar directamente a la URL de la conversacion
       await this.navigateTo(`/${messageUrl}`);
       await this.page.waitForLoadState('domcontentloaded');
-      // Esperar a que el campo de mensaje o el historial de chat cargue
       await this.page.locator('textarea[name="message"], textarea, .ossn-chat-messages, .message-inner').first()
         .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
       return true;
@@ -94,7 +92,6 @@ export class MessagesPage extends BasePage {
       const btn = this.page.locator(selector).first();
       if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await btn.click();
-        // Esperar a que OSSN procese el envío del mensaje
         try {
           await this.page.waitForResponse(
             response => response.url().includes('message') && response.status() < 400,

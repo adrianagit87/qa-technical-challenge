@@ -37,13 +37,11 @@ test.describe('TC-01: Registro exitoso', () => {
         birthdate: validUser.birthdate,
       });
 
-      // Esperar a que OSSN procese el formulario
       await page.waitForLoadState('domcontentloaded');
       await page.waitForLoadState('load').catch(() => {});
     });
 
     await test.step('Verificar resultado del registro', async () => {
-      // Verificar que NO hay mensaje de error
       const errorMessage = await registerPage.getErrorMessage();
       expect(
         errorMessage,
