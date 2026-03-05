@@ -17,7 +17,9 @@ export class MessagesPage extends BasePage {
   async navigateToInbox(): Promise<void> {
     await this.navigateTo('/messages');
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000);
+    // Esperar a que el inbox cargue (lista de conversaciones o texto "Inbox")
+    await this.page.locator('.ossn-recent-message-item, .ossn-messages').first()
+      .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
   }
 
   /**
@@ -42,7 +44,9 @@ export class MessagesPage extends BasePage {
       // Navegar directamente a la URL de la conversacion
       await this.navigateTo(`/${messageUrl}`);
       await this.page.waitForLoadState('domcontentloaded');
-      await this.page.waitForTimeout(3000);
+      // Esperar a que el campo de mensaje o el historial de chat cargue
+      await this.page.locator('textarea[name="message"], textarea, .ossn-chat-messages, .message-inner').first()
+        .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
       return true;
     }
 
@@ -51,7 +55,8 @@ export class MessagesPage extends BasePage {
     if (await firstItem.isVisible({ timeout: 5000 }).catch(() => false)) {
       await firstItem.click();
       await this.page.waitForLoadState('domcontentloaded');
-      await this.page.waitForTimeout(3000);
+      await this.page.locator('textarea[name="message"], textarea, .ossn-chat-messages, .message-inner').first()
+        .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
       return true;
     }
 
@@ -62,8 +67,6 @@ export class MessagesPage extends BasePage {
    * Busca y llena el campo de mensaje.
    */
   async fillMessageText(text: string): Promise<boolean> {
-    await this.page.waitForTimeout(1000);
-
     const selectors = [
       'textarea[name="message"]',
       'textarea',
@@ -91,8 +94,15 @@ export class MessagesPage extends BasePage {
       const btn = this.page.locator(selector).first();
       if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await btn.click();
-        await this.page.waitForLoadState('domcontentloaded');
-        await this.page.waitForTimeout(2000);
+        // Esperar a que OSSN procese el envío del mensaje
+        try {
+          await this.page.waitForResponse(
+            response => response.url().includes('message') && response.status() < 400,
+            { timeout: 10000 }
+          );
+        } catch {
+          await this.page.waitForLoadState('domcontentloaded');
+        }
         return;
       }
     }

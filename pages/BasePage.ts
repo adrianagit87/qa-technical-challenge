@@ -16,10 +16,6 @@ export class BasePage {
     await this.page.goto(path, { waitUntil: 'domcontentloaded' });
   }
 
-  async waitForPageLoad(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
-  }
-
   /**
    * Verifica si el usuario tiene sesion activa.
    * En OSSN, el menu de usuario aparece cuando esta logueado.

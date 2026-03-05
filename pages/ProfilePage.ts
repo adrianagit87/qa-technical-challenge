@@ -3,63 +3,99 @@ import { BasePage } from './BasePage';
 /**
  * ProfilePage: Page Object para el perfil de usuario en OSSN.
  *
- * URL: /u/{username} (perfil público)
- * URL: /u/{username}/edit (edición de perfil)
+ * URL: /u/{username} (perfil publico)
+ * URL: /u/{username}/edit (edicion de perfil)
  *
  * Verificado contra OSSN demo real (marzo 2026):
- * - Perfil público muestra: nombre "System Administrator", avatar, tabs (Timeline, Friends, Photos)
+ * - Perfil publico muestra: nombre del usuario, avatar, tabs (Timeline, Friends, Photos)
  * - Edit profile tiene "Basic Settings" (First Name, Last Name) — NO tiene campo about/bio visible
- * - El nombre del perfil está en el area del header, no en un h2
+ * - La demo NO permite editar el perfil del admin: muestra mensaje de restriccion al guardar
  */
 export class ProfilePage extends BasePage {
-  // Selectores con múltiples fallbacks — OSSN varía entre versiones
-  private readonly profileName = '.profile-body h2, .profile-name, .ossn-owner-name, .user-fullname, h2';
-  private readonly aboutSection = '.ossn-user-about, .user-about, .profile-about';
+  // Selectores con fallbacks — OSSN varia entre versiones
+  private readonly profileName = '.profile-body h2, .profile-name, .ossn-owner-name, .user-fullname';
+  private readonly firstNameInput = 'input[name="firstname"]';
+  private readonly lastNameInput = 'input[name="lastname"]';
+  // Selectores para mensajes del sistema OSSN (error, exito, restriccion)
+  private readonly systemMessageSelectors = [
+    '.ossn-system-messages',
+    '.ossn-message-error',
+    '.ossn-message-success',
+    '.ossn-notification-messages',
+    '.alert-danger',
+    '.alert-success',
+    '.error-message',
+  ];
 
   async navigateToProfile(username = 'administrator'): Promise<void> {
     await this.navigateTo(`/u/${username}`);
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000);
+    // Esperar a que el nombre del perfil sea visible (indicador de carga completa)
+    await this.page.locator(this.profileName).first()
+      .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
   }
 
   async navigateToEditProfile(username = 'administrator'): Promise<void> {
     await this.navigateTo(`/u/${username}/edit`);
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000);
+    // Esperar a que el formulario de edición cargue
+    await this.page.locator(this.firstNameInput)
+      .waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
   }
 
   async getProfileName(): Promise<string> {
-    // Intentar primero con selectores CSS
     const name = this.page.locator(this.profileName).first();
     if (await name.isVisible({ timeout: 5000 }).catch(() => false)) {
-      return (await name.textContent()) ?? '';
-    }
-    // Fallback: buscar "System Administrator" o el username en la página
-    const byText = this.page.getByText('System Administrator', { exact: false });
-    if (await byText.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-      return 'System Administrator';
+      return (await name.textContent())?.trim() ?? '';
     }
     return '';
   }
 
   /**
-   * Busca y edita el campo First Name en Basic Settings.
-   * OSSN no tiene un campo "about/bio" visible en la página de edición básica.
-   * Usamos First Name como campo de prueba para demostrar la edición de perfil.
+   * Edita el campo First Name en Basic Settings.
+   * OSSN no tiene campo "about/bio" visible en edicion basica.
    */
   async editFirstName(name: string): Promise<void> {
-    const firstNameInput = this.page.locator('input[name="firstname"]');
-    await firstNameInput.waitFor({ state: 'visible', timeout: 10000 });
-    await firstNameInput.clear();
-    await firstNameInput.fill(name);
+    const input = this.page.locator(this.firstNameInput);
+    await input.waitFor({ state: 'visible', timeout: 10000 });
+    await input.clear();
+    await input.fill(name);
   }
 
-  async getAboutText(): Promise<string> {
-    const about = this.page.locator(this.aboutSection).first();
-    if (await about.isVisible({ timeout: 5000 }).catch(() => false)) {
-      return (await about.textContent()) ?? '';
+  /**
+   * Lee el valor actual del campo First Name en la pagina de edicion.
+   */
+  async getFirstNameValue(): Promise<string> {
+    const input = this.page.locator(this.firstNameInput);
+    if (await input.isVisible({ timeout: 5000 }).catch(() => false)) {
+      return (await input.inputValue()) ?? '';
     }
     return '';
+  }
+
+  /**
+   * Detecta mensajes del sistema OSSN despues de una accion (guardar, error, restriccion).
+   * Retorna el texto del mensaje o null si no hay mensaje visible.
+   */
+  async getSystemMessage(): Promise<string | null> {
+    for (const selector of this.systemMessageSelectors) {
+      const el = this.page.locator(selector).first();
+      if (await el.isVisible({ timeout: 3000 }).catch(() => false)) {
+        const text = await el.textContent();
+        if (text && text.trim().length > 0) {
+          return text.trim();
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Verifica si la pagina de edicion muestra campos editables.
+   */
+  async isEditFormVisible(): Promise<boolean> {
+    return this.page.locator(`${this.firstNameInput}, ${this.lastNameInput}`).first()
+      .isVisible({ timeout: 10000 }).catch(() => false);
   }
 
   /**
@@ -81,7 +117,8 @@ export class ProfilePage extends BasePage {
       if (await btn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await btn.click();
         await this.page.waitForLoadState('domcontentloaded');
-        await this.page.waitForTimeout(2000);
+        // Esperar respuesta del sistema (mensaje de éxito/error)
+        await this.waitForSystemResponse();
         return;
       }
     }
@@ -94,7 +131,7 @@ export class ProfilePage extends BasePage {
       if (await btn.isVisible().catch(() => false)) {
         await btn.click();
         await this.page.waitForLoadState('domcontentloaded');
-        await this.page.waitForTimeout(2000);
+        await this.waitForSystemResponse();
         return;
       }
     }
@@ -105,22 +142,33 @@ export class ProfilePage extends BasePage {
       if (form) form.submit();
     });
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000);
+    await this.waitForSystemResponse();
+  }
+
+  /**
+   * Espera a que OSSN muestre un mensaje del sistema después de una acción.
+   * Reemplaza waitForTimeout con una espera basada en condiciones reales.
+   */
+  private async waitForSystemResponse(): Promise<void> {
+    const messageSelector = this.systemMessageSelectors.join(', ');
+    try {
+      await this.page.locator(messageSelector).first()
+        .waitFor({ state: 'visible', timeout: 5000 });
+    } catch {
+      // Si no aparece mensaje, esperar estabilidad del DOM
+      await this.page.waitForLoadState('networkidle').catch(() => {});
+    }
   }
 
   async isProfilePageVisible(): Promise<boolean> {
-    // Verificar que estamos en una página de perfil
     const url = this.page.url();
-    if (url.includes('/u/')) {
-      // Esperar a que la página cargue contenido
-      await this.page.waitForTimeout(2000);
-      // Buscar cualquier indicador de que la página de perfil cargó
-      const hasName = await this.page.getByText('System Administrator', { exact: false })
-        .first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasTabs = await this.page.getByText('Timeline', { exact: false })
-        .first().isVisible({ timeout: 3000 }).catch(() => false);
-      return hasName || hasTabs;
-    }
-    return false;
+    if (!url.includes('/u/')) return false;
+
+    // Buscar indicadores de que la pagina de perfil cargo
+    const hasName = await this.page.locator(this.profileName).first()
+      .isVisible({ timeout: 5000 }).catch(() => false);
+    const hasTabs = await this.page.getByText('Timeline', { exact: false })
+      .first().isVisible({ timeout: 3000 }).catch(() => false);
+    return hasName || hasTabs;
   }
 }

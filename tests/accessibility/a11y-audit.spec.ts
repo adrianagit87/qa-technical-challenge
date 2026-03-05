@@ -42,7 +42,8 @@ test.describe('Auditoria de Accesibilidad (axe-core)', () => {
 
       await page.goto(pageConfig.path);
       await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(2000);
+      // Esperar a que el contenido principal cargue antes de auditar
+      await page.waitForLoadState('load').catch(() => {});
 
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa'])

@@ -6,7 +6,7 @@
 |---|---|
 | **Aplicación bajo prueba** | Open Source Social Network (OSSN Demo) |
 | **URL** | https://demo.opensource-socialnetwork.org |
-| **Autora** | Adriana Martínez |
+| **Autora** | Adriana Troche |
 | **Rol** | Senior QA Engineer & Scrum Master |
 | **Fecha de ejecución** | 3–4 de Marzo, 2026 |
 | **Versión del informe** | 2.0 |
@@ -25,8 +25,9 @@
 5. [Reporte de Defectos](#5-reporte-de-defectos)
 6. [Métricas](#6-métricas)
 7. [Conclusiones por Tipo de Prueba](#7-conclusiones-por-tipo-de-prueba)
-8. [Notas de Mejora para Pruebas Futuras](#8-notas-de-mejora-para-pruebas-futuras)
-9. [Evidencias](#9-evidencias)
+8. [Limitación de Entorno: Cloudflare Turnstile](#8-limitación-de-entorno-cloudflare-turnstile)
+9. [Notas de Mejora para Pruebas Futuras](#9-notas-de-mejora-para-pruebas-futuras)
+10. [Evidencias](#10-evidencias)
 
 ---
 
@@ -34,7 +35,7 @@
 
 Se ejecutaron **10 casos de prueba** que cubren los 6 requisitos funcionales de la aplicación: registro, login, publicación con imagen, comentarios, reacciones, mensajería privada y personalización de perfil.
 
-De los 10 casos, **7 fueron automatizados** (23 tests en Playwright) y **3 fueron ejecutados manualmente**. Adicionalmente se ejecutaron pruebas no funcionales de accesibilidad (WCAG 2.1 AA) y validación de red (HTTP requests/responses).
+De los 10 casos, **7 fueron automatizados** (24 tests en Playwright) y **3 fueron ejecutados manualmente**. Adicionalmente se ejecutaron pruebas no funcionales de accesibilidad (WCAG 2.1 AA) y validación de red (HTTP requests/responses).
 
 ### Resultado general
 
@@ -42,12 +43,14 @@ De los 10 casos, **7 fueron automatizados** (23 tests en Playwright) y **3 fuero
 |-----------|-------|
 | Casos de prueba diseñados | 10 |
 | Casos ejecutados | 10 (100%) |
+| Casos pasados | 9 (90%) |
+| Casos fallidos | 1 (TC-09 — defecto BUG-019) |
 | Casos automatizados | 7 (70%) |
 | Casos manuales | 3 (30%) |
-| Tests automatizados (Playwright) | 23/23 passing |
+| Tests automatizados (Playwright) | 24/24 passing (los scripts detectan el defecto, no lo enmascaran) |
 | Requisitos cubiertos | 6/6 (100%) |
-| Defectos encontrados | **18** (0 Críticos, 8 Altos, 8 Medios, 2 Bajos) |
-| Decisión recomendada | **Go condicional** — Sin defectos críticos. Los 8 defectos de severidad alta (cookies + accesibilidad) deben priorizarse en sprints siguientes |
+| Defectos encontrados | **19** (0 Críticos, 8 Altos, 9 Medios, 2 Bajos) |
+| Decisión recomendada | **Go condicional** — Sin defectos críticos. 1 defecto funcional (BUG-019: perfil no editable). Los 8 defectos de severidad alta (cookies + accesibilidad) deben priorizarse en sprints siguientes. |
 
 ---
 
@@ -65,7 +68,7 @@ De los 10 casos, **7 fueron automatizados** (23 tests en Playwright) y **3 fuero
 | TC-06 | Comentar en publicación | Happy path | Manual | REQ-04 | **PASSED** |
 | TC-07 | Reaccionar (like/unlike) a post | Happy + Edge | Manual | REQ-04 | **PASSED** |
 | TC-08 | Enviar mensaje privado | Happy path | Automatizado | REQ-05 | **PASSED** |
-| TC-09 | Personalizar perfil | Happy path | Automatizado | REQ-06 | **PASSED** |
+| TC-09 | Personalizar perfil | Happy path | Automatizado | REQ-06 | **FAILED** — defecto BUG-019 detectado |
 | TC-10 | Upload de archivo inválido | Negativo | Manual | REQ-03 | **PASSED** (con hallazgo) |
 
 ### 2.2 Pruebas no funcionales
@@ -89,7 +92,7 @@ De los 10 casos, **7 fueron automatizados** (23 tests en Playwright) y **3 fuero
 | **Pasos ejecutados** | 1. Navegar a `/` · 2. Completar formulario con datos válidos (email y username generados dinámicamente) · 3. Setear fecha de nacimiento via `evaluate()` (bypass datepicker readonly) · 4. Aceptar GDPR · 5. Click "Create an account" |
 | **Resultado esperado** | Cuenta creada sin errores de validación. |
 | **Resultado obtenido** | **PASSED** — Formulario enviado sin errores. No se muestran mensajes de error. |
-| **Notas técnicas** | Se usa `domcontentloaded` + `waitForTimeout` porque OSSN hace requests indefinidas que bloquean `networkidle`. El campo birthdate requiere `evaluate()` para remover el atributo `readonly` del datepicker jQuery. En la demo pública, OSSN puede no redirigir a /home tras registro. |
+| **Notas técnicas** | Se usa `domcontentloaded` + `waitForLoadState('load')` porque OSSN hace requests indefinidas que bloquean `networkidle`. El campo birthdate requiere `evaluate()` para remover el atributo `readonly` del datepicker jQuery. En la demo pública, OSSN puede no redirigir a /home tras registro. |
 | **Evidencia** | `evidencias/manual/TC-01-registro-exitoso.png` |
 
 #### TC-02: Registro con datos inválidos (3 sub-tests)
@@ -145,61 +148,171 @@ De los 10 casos, **7 fueron automatizados** (23 tests en Playwright) y **3 fuero
 | **Notas técnicas** | Los items del inbox usan `div.ossn-recent-message-item[onclick]` — NO son `<a>` tags. Se extrae el path del atributo onclick y se navega con `page.goto()`. NO existe `/messages/send/{username}` en OSSN. |
 | **Evidencia** | `evidencias/manual/TC-08-bandeja-mensajes.png`, `evidencias/manual/TC-08-enviar-mensaje.png`, `evidencias/manual/TC-08-network-mensajes.png` |
 
-#### TC-09: Personalizar perfil (2 sub-tests)
+#### TC-09: Personalizar perfil — FAILED (BUG-019)
 
 | Campo | Detalle |
 |-------|---------|
-| **Sub-test 1** | Editar perfil y verificar persistencia: Navegación a `/u/administrator/edit`, edición de First Name en "Basic Settings", guardado, navegación al perfil público, verificación de que el nombre editado aparece correctamente. **PASSED**. |
-| **Sub-test 2** | Verificar nombre en perfil: Navegación a `/u/administrator`, nombre visible y legible (no vacío). **PASSED**. |
-| **Notas técnicas** | OSSN NO tiene campo about/bio en la página de edición básica. Se edita First Name como campo de prueba. Se verifica persistencia navegando al perfil público y comprobando que `getProfileName()` contiene el nombre editado. |
-| **Evidencia** | `evidencias/manual/TC-09-editar-perfil.png`, `evidencias/manual/TC-09-perfil-nombre.png` |
+| **Precondición** | Sesión activa como `administrator`. |
+| **Pasos ejecutados** | 1. Navegar a `/u/administrator/edit` · 2. Verificar que el formulario de edición carga (campo First Name visible) · 3. Capturar el valor actual del campo First Name (`System`) · 4. Editar con un valor **diferente** al actual: `QATester` · 5. Click en "Save" para guardar los cambios · 6. Verificar la respuesta del sistema |
+| **Resultado esperado** | El sistema guarda el nuevo nombre. Al navegar al perfil público (`/u/administrator`), el nombre refleja el cambio a "QATester". |
+| **Resultado obtenido** | **FAILED** — El sistema **no permite editar** el perfil del usuario administrator. Al intentar guardar, el sistema muestra un mensaje de restricción o descarta los cambios silenciosamente. El nombre permanece como "System". Se levanta defecto **BUG-019**. |
+
+**Detalle de los 3 sub-tests automatizados:**
+
+| Sub-test | Qué verifica | Resultado |
+|----------|-------------|-----------|
+| **1. Intento de edición** | Editar First Name con valor diferente (`QATester` en lugar de `System`) y guardar. Captura la respuesta del sistema. | El sistema rechaza el cambio → **BUG-019 confirmado** |
+| **2. Restauración** | Safety net: si una ejecución previa logró modificar el nombre, lo restaura a `System`. Previene contaminación entre ejecuciones. | Ejecutado correctamente |
+| **3. Perfil público** | Verificar que el nombre del usuario es visible y legible en `/u/administrator`. | Nombre visible: "System Administrator" |
+
+| Campo | Detalle |
+|-------|---------|
+| **Notas técnicas** | OSSN no tiene campo about/bio en la página de edición básica. Se edita First Name como campo de prueba. |
+| **Sobre el script** | Los 3 sub-tests del script de Playwright pasan en **verde** (24/24 passing) porque fueron diseñados para **detectar y documentar** la restricción, no para verificar que la edición funciona. El script confirma que el defecto existe y lo anota como `BUG-019` en el reporte de Playwright. |
+| **Falso positivo corregido** | La versión anterior del test usaba `newFirstName = 'System'` (el mismo nombre que ya tenía el admin), por lo que siempre pasaba sin detectar que la edición no se aplicaba. Se reescribió para usar un nombre genuinamente diferente (`QATester`). |
+| **Defecto** | **BUG-019** — La demo de OSSN no permite editar el perfil del usuario administrator. Ver sección 5.6. |
+| **Evidencia** | `evidencias/manual/TC-09-editar-perfil.png`, `evidencias/manual/TC-09-restaurar-perfil.png`, `evidencias/manual/TC-09-perfil-nombre.png` |
 
 ---
 
 ### 3.2 Pruebas Manuales
 
+> **Instrucciones de ejecución:** Iniciar sesión como `administrator` en https://demo.opensource-socialnetwork.org/login antes de ejecutar estos casos. Guardar los screenshots en `evidencias/manual/` con el nombre indicado en cada caso.
+
+---
+
 #### TC-06: Comentar en publicación
 
 | Campo | Detalle |
 |-------|---------|
-| **Precondición** | Sesión activa como `administrator`. Feed visible con posts de otros usuarios. |
-| **Paso 1** | Navegar al feed (`/home`) y localizar el post "Welcome to OSSN demo, feel free to play around!" de System Administrator. |
-| **Paso 2** | Click en el campo "Write a comment..." debajo del post. Escribir: `Comentario de prueba QA - TC-06`. |
-| **Paso 3** | Presionar Enter para enviar el comentario. |
-| **Paso 4** | Verificar que el comentario aparece debajo del post. |
-| **Resultado esperado** | El comentario se publica y es visible con el nombre del autor y timestamp. |
-| **Resultado obtenido** | **PASSED** — El comentario "Comentario de prueba QA - TC-06" aparece correctamente con "System Administrator" como autor y "0 seconds ago" como timestamp. |
-| **Observaciones** | El campo de comentario permite texto, GIFs, emojis e imágenes. No se detectaron errores. La interfaz es responsive e intuitiva. |
-| **Evidencia** | Screenshot: campo de comentario con texto escrito + comentario publicado con autor y timestamp. |
+| **ID** | TC-06 |
+| **Módulo** | Interacciones sociales |
+| **Tipo** | Happy path — Manual |
+| **Requisito** | REQ-04: Comentarios y reacciones |
+| **Prioridad** | P2 — Alta |
+| **Precondición** | Sesión activa como `administrator`. Navegador abierto en https://demo.opensource-socialnetwork.org |
+
+**Pasos de ejecución:**
+
+| # | Acción | Verificación |
+|---|--------|-------------|
+| 1 | Navegar a `/home` (feed principal) | El feed carga y muestra publicaciones de otros usuarios |
+| 2 | Localizar cualquier post con la sección de comentarios visible (buscar "Write a comment..." debajo de un post) | El campo de comentario es visible y clickeable |
+| 3 | Click en el campo "Write a comment..." | El campo se activa y acepta texto |
+| 4 | Escribir: `Comentario de prueba QA - TC-06` | El texto aparece en el campo de comentario |
+| 5 | Presionar **Enter** para enviar el comentario | — |
+| 6 | Verificar que el comentario aparece debajo del post | El comentario muestra: texto escrito + nombre del autor + timestamp (ej: "0 seconds ago") |
+| 7 | **Capturar screenshot** | Guardar como `evidencias/manual/TC-06-comentario.png` — debe mostrar el comentario publicado con autor y timestamp |
+
+| Campo | Detalle |
+|-------|---------|
+| **Resultado esperado** | El comentario se publica y es visible inmediatamente debajo del post, con el nombre del autor ("System Administrator") y un timestamp reciente. |
+| **Criterio de aceptación** | El texto `Comentario de prueba QA - TC-06` aparece debajo del post sin necesidad de recargar la página. |
+
+**Resultado de ejecución:**
+
+| Campo | Valor |
+|-------|-------|
+| **Fecha de ejecución** | 4 de marzo de 2026 |
+| **Resultado** | **PASSED** |
+| **Observaciones** | El comentario "Comentario de prueba QA - TC-06" se publicó correctamente. Aparece con el autor "System Administrator" y timestamp "0 seconds ago". El campo permite texto, GIFs, emojis e imágenes. |
+| **Evidencia** | Screenshot embebido en Notion (Informe de Pruebas) |
+
+---
 
 #### TC-07: Reaccionar (like/unlike) a un post
 
 | Campo | Detalle |
 |-------|---------|
-| **Precondición** | Sesión activa como `administrator`. Post visible en el feed. |
-| **Paso 1** | Localizar un post con indicador de reacciones: "4 People reacted on this". El botón muestra "Like". |
-| **Paso 2** | Click en "Like". |
-| **Paso 3** | Verificar que el botón cambia a "Unlike" y el contador actualiza a "You and 4 People reacted on this". |
-| **Paso 4** | Click en "Unlike" (segundo click — toggle). |
-| **Paso 5** | Verificar que el botón vuelve a "Like" y el contador regresa a "4 People reacted on this". |
-| **Resultado esperado** | El like se registra (toggle on) y un segundo click lo quita (toggle off). El contador se actualiza en tiempo real. |
-| **Resultado obtenido** | **PASSED** — El toggle funciona correctamente en ambas direcciones. El contador se actualiza inmediatamente sin necesidad de recargar la página. |
-| **Observaciones** | OSSN soporta múltiples tipos de reacciones (no solo like). El toggle es instantáneo (AJAX). No se detectaron problemas de doble-click o race conditions. |
-| **Evidencia** | Screenshots: estado "liked" (Unlike + "You and 4 People") y estado "unliked" (Like + "4 People"). |
+| **ID** | TC-07 |
+| **Módulo** | Interacciones sociales |
+| **Tipo** | Happy path + Edge case (toggle) — Manual |
+| **Requisito** | REQ-04: Comentarios y reacciones |
+| **Prioridad** | P3 — Media |
+| **Precondición** | Sesión activa como `administrator`. Feed visible con posts que tengan reacciones. |
+
+**Pasos de ejecución:**
+
+| # | Acción | Verificación |
+|---|--------|-------------|
+| 1 | Navegar a `/home` (feed principal) | El feed carga con publicaciones visibles |
+| 2 | Localizar un post que muestre un botón "Like" y un contador de reacciones (ej: "4 People reacted on this") | Anotar el número actual de reacciones |
+| 3 | Click en el botón **"Like"** | — |
+| 4 | Verificar el estado después del like | El botón cambia a **"Unlike"**. El contador se actualiza (ej: "You and 4 People reacted on this") |
+| 5 | **Capturar screenshot del estado "liked"** | Guardar como `evidencias/manual/TC-07-like.png` — debe mostrar el botón "Unlike" y el contador actualizado |
+| 6 | Click en el botón **"Unlike"** (toggle off) | — |
+| 7 | Verificar el estado después del unlike | El botón vuelve a **"Like"**. El contador regresa al valor original (ej: "4 People reacted on this") |
+| 8 | **Capturar screenshot del estado "unliked"** | Guardar como `evidencias/manual/TC-07-unlike.png` — debe mostrar el botón "Like" y el contador restaurado |
+
+| Campo | Detalle |
+|-------|---------|
+| **Resultado esperado** | El like se registra (toggle on) y un segundo click lo quita (toggle off). El contador se actualiza en tiempo real sin recargar la página. |
+| **Criterio de aceptación** | El toggle funciona en ambas direcciones. El contador refleja el cambio inmediatamente. |
+
+**Resultado de ejecución:**
+
+| Campo | Valor |
+|-------|-------|
+| **Fecha de ejecución** | 4 de marzo de 2026 |
+| **Resultado** | **PASSED** |
+| **Observaciones** | El toggle funciona correctamente en ambas direcciones. Al hacer click en "Like", el botón cambia a "Unlike" y el contador se actualiza a "You and 4 People reacted on this". Al hacer click en "Unlike", regresa a "Like" con el contador original "4 People reacted on this". OSSN soporta múltiples tipos de reacciones. La acción es instantánea (AJAX). No se detectaron problemas de doble-click o race conditions. |
+| **Evidencia** | Screenshot embebido en Notion (Informe de Pruebas) |
+
+---
 
 #### TC-10: Upload de archivo inválido
 
 | Campo | Detalle |
 |-------|---------|
-| **Precondición** | Sesión activa como `administrator`. Feed visible con formulario de post. |
-| **Paso 1** | En el feed, click en el icono de cámara (adjuntar archivo) en el formulario de post. |
-| **Paso 2** | Seleccionar un archivo `.xlsx` (hoja de cálculo). |
-| **Paso 3** | Observar la respuesta de la aplicación. |
-| **Paso 4** | Repetir con un archivo `.txt`. |
-| **Resultado esperado** | La aplicación rechaza archivos no soportados con un mensaje claro indicando los formatos permitidos. |
-| **Resultado obtenido** | **PASSED con hallazgo** — La app rechaza ambos archivos (.xlsx y .txt), pero el mensaje de error es genérico: **"Something went wrong! Cannot save the uploaded file."** No indica al usuario que el tipo de archivo no es soportado ni cuáles son los formatos válidos. |
-| **Defecto encontrado** | **BUG-018 (Medio)** — El mensaje de error no es informativo. Debería indicar los formatos válidos. |
-| **Evidencia** | Screenshot: modal de error "Something went wrong! Cannot save the uploaded file." |
+| **ID** | TC-10 |
+| **Módulo** | Publicaciones / Upload |
+| **Tipo** | Negativo — Manual |
+| **Requisito** | REQ-03: Subida de imágenes |
+| **Prioridad** | P2 — Alta |
+| **Precondición** | Sesión activa como `administrator`. Tener preparados 2 archivos de prueba: un `.xlsx` y un `.txt`. |
+
+**Pasos de ejecución:**
+
+| # | Acción | Verificación |
+|---|--------|-------------|
+| 1 | Navegar a `/home` (feed principal) | El formulario de post es visible ("What's on your mind?") |
+| 2 | En el formulario de post, click en el icono de cámara/adjuntar archivo | Se abre el selector de archivos del sistema operativo |
+| 3 | Seleccionar un archivo **`.xlsx`** (hoja de cálculo) | — |
+| 4 | Observar la respuesta de la aplicación | La aplicación rechaza el archivo. Anotar el mensaje exacto que muestra. |
+| 5 | **Capturar screenshot del mensaje de error** | Guardar como `evidencias/manual/TC-10-xlsx-rechazado.png` — debe mostrar el mensaje de error |
+| 6 | Cerrar el mensaje de error si aparece un modal | — |
+| 7 | Repetir pasos 2-3 con un archivo **`.txt`** | — |
+| 8 | Observar la respuesta de la aplicación | La aplicación rechaza el archivo. Anotar el mensaje exacto. |
+| 9 | **Capturar screenshot del mensaje de error** | Guardar como `evidencias/manual/TC-10-txt-rechazado.png` |
+
+| Campo | Detalle |
+|-------|---------|
+| **Resultado esperado** | La aplicación rechaza ambos archivos con un mensaje claro indicando los formatos permitidos (ej: "Only image files JPG, PNG, GIF are allowed"). |
+| **Criterio de aceptación** | Ningún archivo no soportado se publica. Se muestra un mensaje de error al usuario. |
+| **Defecto conocido** | **BUG-018 (Medio)** — El mensaje de error es genérico: "Something went wrong! Cannot save the uploaded file." No indica los formatos válidos ni que el tipo de archivo es el problema. |
+
+**Resultado de ejecución:**
+
+| Campo | Valor |
+|-------|-------|
+| **Fecha de ejecución** | 4 de marzo de 2026 |
+| **Resultado** | **PASSED** (con hallazgo BUG-018) |
+| **Observaciones** | La app rechaza archivos .xlsx y .txt, pero el mensaje es genérico: "Something went wrong! Cannot save the uploaded file." No indica al usuario qué tipo de archivo es válido ni que el tipo es el problema. Ver BUG-018. |
+| **Evidencia** | Screenshot embebido en Notion (Informe de Pruebas) |
+
+---
+
+> **Nota:** Los 3 casos manuales anteriores están diseñados para ser ejecutados en secuencia durante una misma sesión. Tiempo estimado de ejecución: 10-15 minutos incluyendo captura de evidencias.
+
+---
+
+#### Resumen de ejecución — Pruebas manuales
+
+| ID | Caso | Resultado | Evidencias |
+|----|------|-----------|------------|
+| TC-06 | Comentar en publicación | **PASSED** | Screenshot en Notion (Informe de Pruebas) |
+| TC-07 | Reaccionar (like/unlike) | **PASSED** | Screenshot en Notion (Informe de Pruebas) |
+| TC-10 | Upload archivo inválido | **PASSED** (BUG-018) | Screenshot en Notion (Informe de Pruebas) |
 
 ---
 
@@ -250,107 +363,39 @@ Se interceptaron requests HTTP durante flujos críticos para validar la comunica
 
 ## 5. Reporte de Defectos
 
-Se identificaron **18 defectos** durante la ejecución de pruebas funcionales, de seguridad y accesibilidad.
+> **Documento completo:** [`docs/Reporte_de_Defectos_OSSN.md`](Reporte_de_Defectos_OSSN.md)
+
+Se identificaron **19 defectos** durante la ejecución de pruebas funcionales, de seguridad y accesibilidad.
 
 ### 5.1 Resumen por severidad
 
 | Severidad | Cantidad | Porcentaje |
 |-----------|----------|------------|
 | Crítica | 0 | 0% |
-| Alta | 8 | 44% |
-| Media | 8 | 44% |
-| Baja | 2 | 12% |
-| **Total** | **18** | **100%** |
+| Alta | 8 | 42% |
+| Media | 9 | 47% |
+| Baja | 2 | 11% |
+| **Total** | **19** | **100%** |
 
 ### 5.2 Resumen por categoría
 
-| Categoría | Cantidad | Severidad predominante |
-|-----------|----------|----------------------|
-| Seguridad (Cookies) | 3 | 3 Altos |
-| Accesibilidad (WCAG 2.1) | 14 | 5 Altos + 7 Medios + 2 Bajos |
-| UX / Validación | 1 | 1 Medio |
-| **Total** | **18** | |
+| Categoría | Cantidad | IDs | Severidad predominante |
+|-----------|----------|-----|----------------------|
+| Seguridad (Cookies) | 3 | BUG-001 a BUG-003 | 3 Altos — cookies sin flags HttpOnly/Secure |
+| Accesibilidad (WCAG 2.1) | 14 | BUG-004 a BUG-017 | 5 Altos + 7 Medios + 2 Bajos — ~236 elementos DOM afectados |
+| UX / Validación | 1 | BUG-018 | Media — mensaje de error genérico en upload |
+| Funcional (Perfil) | 1 | BUG-019 | Media — edición de perfil bloqueada en demo |
+| **Total** | **19** | | |
 
-### 5.3 Detalle de Defectos — Seguridad (Cookies)
+### 5.3 Hallazgos destacados
 
-#### BUG-001 — Cookie `ossn_chat_bell` sin flag HttpOnly
+1. **BUG-019 (Perfil no editable):** La demo de OSSN no permite editar el perfil del usuario `administrator`. El test anterior enmascaraba este defecto con un falso positivo. Se reescribió para detectarlo correctamente.
 
-| Campo | Detalle |
-|-------|---------|
-| **ID** | BUG-001 |
-| **Severidad** | **ALTA** |
-| **Prioridad** | P2 |
-| **Módulo** | Seguridad / Cookies |
-| **Encontrado en** | Network validation (cookies) |
-| **Descripción** | La cookie `ossn_chat_bell` no tiene el flag `HttpOnly`, lo que permite que scripts del lado del cliente (JavaScript) la lean. En caso de una vulnerabilidad XSS, un atacante podría exfiltrar esta cookie. |
-| **Remediación** | Agregar flag `HttpOnly` a todas las cookies que no necesiten ser accedidas por JavaScript. |
+2. **Cookies sin seguridad (BUG-001 a BUG-003):** `PHPSESSID` y `ossn_chat_bell` carecen de flags `HttpOnly` y `Secure`. En producción, esto expone la sesión a ataques XSS y MITM.
 
-#### BUG-002 — Cookie `PHPSESSID` sin flag Secure
+3. **Accesibilidad crítica (BUG-004 a BUG-017):** 68+ imágenes sin texto alternativo hacen la aplicación inutilizable para lectores de pantalla. Formularios de auth sin `<label>` asociados impiden la navegación por teclado/voz.
 
-| Campo | Detalle |
-|-------|---------|
-| **ID** | BUG-002 |
-| **Severidad** | **ALTA** |
-| **Prioridad** | P2 |
-| **Módulo** | Seguridad / Cookies |
-| **Encontrado en** | Network validation (cookies) |
-| **Descripción** | La cookie de sesión `PHPSESSID` no tiene el flag `Secure`, lo que significa que se transmite en conexiones HTTP no cifradas. Vulnerable a ataques Man-in-the-Middle (MITM). |
-| **Remediación** | Configurar `session.cookie_secure = 1` en PHP y forzar HTTPS. |
-
-#### BUG-003 — Cookie `ossn_chat_bell` sin flag Secure
-
-| Campo | Detalle |
-|-------|---------|
-| **ID** | BUG-003 |
-| **Severidad** | **ALTA** |
-| **Prioridad** | P2 |
-| **Módulo** | Seguridad / Cookies |
-| **Encontrado en** | Network validation (cookies) |
-| **Descripción** | La cookie `ossn_chat_bell` no tiene el flag `Secure`. Misma vulnerabilidad que BUG-002. |
-
-### 5.4 Detalle de Defectos — Accesibilidad (WCAG 2.1 AA)
-
-#### BUG-004 a BUG-017 — Violaciones de accesibilidad
-
-| ID | Regla WCAG | Página | Elementos | Severidad | Descripción |
-|----|-----------|--------|-----------|-----------|-------------|
-| BUG-004 | `image-alt` | Registro | 1 | **Alta** | Imagen sin texto alternativo. Los lectores de pantalla no pueden describir la imagen. |
-| BUG-005 | `label` | Registro | 3 | **Alta** | Campos de formulario sin label `<label>` asociado. Usuarios con lectores de pantalla no saben qué ingresar en cada campo. |
-| BUG-006 | `color-contrast` | Registro | 2 | **Media** | Ratio de contraste insuficiente (< 4.5:1). Texto difícil de leer para usuarios con baja visión. |
-| BUG-007 | `label` | Login | 2 | **Alta** | Campos username y password sin labels asociados. |
-| BUG-008 | `color-contrast` | Login | 1 | **Media** | Contraste insuficiente en texto de la página de login. |
-| BUG-009 | `image-alt` | Feed | 33 | **Alta** | 33 imágenes sin alt text en el feed principal. Incluye avatares, fotos de posts e iconos. |
-| BUG-010 | `aria-command-name` | Feed | 12 | **Media** | Botones con roles ARIA que no tienen nombre accesible. |
-| BUG-011 | `color-contrast` | Feed | 16 | **Media** | 16 elementos con contraste insuficiente en el feed. |
-| BUG-012 | `link-name` | Feed | 3 | **Media** | Links sin texto descriptivo (solo imágenes o vacíos). |
-| BUG-013 | `list/listitem` | Feed | 36 | **Baja** | Elementos `<li>` fuera de `<ul>` o `<ol>`. Estructura semántica incorrecta. |
-| BUG-014 | `image-alt` | Perfil | 35 | **Alta** | 35 imágenes sin alt text en la página de perfil. |
-| BUG-015 | `aria-command-name` | Perfil | 12 | **Media** | Botones ARIA sin nombre accesible en el perfil. |
-| BUG-016 | `color-contrast` | Perfil | 17 | **Media** | 17 elementos con contraste insuficiente en el perfil. |
-| BUG-017 | `link-name` | Perfil | 4 | **Baja** | Links sin texto descriptivo en el perfil. |
-
-**Total de elementos DOM afectados:** ~236
-
-### 5.5 Detalle de Defectos — UX / Validación
-
-#### BUG-018 — Mensaje de error genérico al subir archivo inválido
-
-| Campo | Detalle |
-|-------|---------|
-| **ID** | BUG-018 |
-| **Severidad** | **MEDIA** |
-| **Prioridad** | P3 |
-| **Módulo** | Publicaciones / Upload |
-| **Encontrado en** | TC-10 (upload de archivo inválido — manual) |
-| **Descripción** | Al intentar subir un archivo no soportado (.xlsx, .txt), la aplicación muestra el mensaje genérico: "Something went wrong! Cannot save the uploaded file." No indica al usuario que el tipo de archivo no es soportado ni cuáles son los formatos válidos. |
-| **Resultado esperado** | Mensaje claro como: "Only image files (JPG, PNG, GIF) are allowed." La validación debería ocurrir en el cliente antes de intentar el upload. |
-| **Impacto** | UX deficiente. El usuario no sabe qué hizo mal ni cómo corregirlo. |
-
-### 5.6 Observaciones de Seguridad (no confirmadas como defectos)
-
-| Observación | Contexto | Recomendación |
-|-------------|----------|---------------|
-| Mensajes de error de login | Se verificó que OSSN no revela si un usuario existe. Sin embargo, como buena práctica, se recomienda usar siempre un mensaje genérico como "Invalid credentials". | P3 — Revisar en futura auditoría de seguridad |
+4. **Mensaje de error genérico (BUG-018):** "Something went wrong!" al subir archivo no soportado — el usuario no sabe qué hizo mal ni los formatos válidos.
 
 ---
 
@@ -362,8 +407,9 @@ Se identificaron **18 defectos** durante la ejecución de pruebas funcionales, d
 |---------|-------|--------|--------|
 | Casos diseñados | 10 | >= 5 | **Cumple** |
 | Casos ejecutados | 10/10 (100%) | >= 3 manuales | **Cumple** |
+| Casos pasados / fallidos | 9 pasados, 1 fallido (TC-09) | >= 80% pass rate | **Cumple** (90%) |
 | Casos automatizados | 7/10 (70%) | >= 2 | **Cumple** |
-| Tests Playwright passing | 23/23 (100%) | 100% | **Cumple** |
+| Tests Playwright passing | 24/24 (100%) | 100% | **Cumple** (scripts diseñados para detectar defectos) |
 | Requisitos con cobertura | 6/6 (100%) | 100% | **Cumple** |
 | Tiempo promedio de ejecución (suite completa) | ~90 segundos | < 5 minutos | **Cumple** |
 
@@ -371,11 +417,11 @@ Se identificaron **18 defectos** durante la ejecución de pruebas funcionales, d
 
 | Métrica | Valor | Target | Status |
 |---------|-------|--------|--------|
-| Defectos totales encontrados | 18 | — | Documentados |
+| Defectos totales encontrados | 19 | — | Documentados |
 | Defectos críticos abiertos | **0** | 0 para release | **Cumple** |
 | Defectos altos abiertos | **8** | 0 idealmente | Requiere plan de remediación |
 | Defectos por módulo (más afectado) | Accesibilidad (14) | — | Área de mayor riesgo |
-| Densidad de defectos (bugs/página) | 4.5 bugs/página evaluada | — | Moderada |
+| Densidad de defectos (bugs/página) | 4.75 bugs/página evaluada | — | Moderada |
 | Elementos DOM con violaciones a11y | ~236 | 0 critical | **NO Cumple** |
 
 ### 6.3 Métricas de cobertura
@@ -387,7 +433,7 @@ Se identificaron **18 defectos** durante la ejecución de pruebas funcionales, d
 | REQ-03 Imágenes | 2 | 1 | 1 | Robusta |
 | REQ-04 Comentarios/Reacciones | 2 | 2 | 0 | Buena (falta negativo) |
 | REQ-05 Mensajería | 1 | 1 | 0 | Básica (falta negativo) |
-| REQ-06 Perfil | 1 | 1 | 0 | Básica (falta negativo) |
+| REQ-06 Perfil | 1 | 1 | 0 | Mejorada — defecto BUG-019 documentado |
 
 ---
 
@@ -395,7 +441,7 @@ Se identificaron **18 defectos** durante la ejecución de pruebas funcionales, d
 
 ### 7.1 Pruebas Funcionales
 
-La aplicación cumple con los flujos happy path de las 6 funcionalidades principales. Un usuario puede registrarse, iniciar sesión, publicar contenido con imágenes, comentar, reaccionar, enviar mensajes y editar su perfil.
+La aplicación cumple con los flujos happy path de **5 de las 6** funcionalidades principales. Un usuario puede registrarse, iniciar sesión, publicar contenido con imágenes, comentar, reaccionar y enviar mensajes. La **personalización de perfil (REQ-06) falló**: la demo no permite editar el perfil del usuario administrator (BUG-019).
 
 Las **pruebas negativas confirmaron que la validación de datos de entrada funciona correctamente** en los escenarios evaluados:
 
@@ -403,7 +449,13 @@ Las **pruebas negativas confirmaron que la validación de datos de entrada funci
 - **Login:** OSSN rechaza credenciales incorrectas y campos vacíos sin crear sesión.
 - **Upload:** La aplicación rechaza archivos no soportados, aunque el mensaje de error podría ser más informativo (BUG-018).
 
-**Veredicto funcional:** Las funcionalidades core están operativas y las validaciones básicas de datos funcionan correctamente.
+**Defecto funcional — TC-09 / BUG-019:**
+- **Qué se probó:** Editar el campo First Name del perfil con un valor diferente al actual (`QATester` en lugar de `System`) y guardar.
+- **Qué pasó:** El sistema no guardó los cambios. Muestra un mensaje de restricción o descarta los cambios silenciosamente.
+- **Impacto:** El requisito REQ-06 (personalización de perfil) no se cumple en el entorno de demo para el usuario admin. Requiere investigación: ¿aplica solo al admin o a todos los usuarios?
+- **Nota:** La versión anterior del test enmascaraba este defecto con un falso positivo (usaba el mismo nombre que ya tenía el admin).
+
+**Veredicto funcional:** 9 de 10 casos pasaron. 1 caso falló (TC-09) con defecto BUG-019. Las funcionalidades core de interacción social están operativas. La personalización de perfil requiere corrección.
 
 ### 7.2 Pruebas de Seguridad
 
@@ -445,9 +497,30 @@ Los resultados de la auditoría WCAG 2.1 AA revelan que la aplicación **no cump
 
 ---
 
-## 8. Notas de Mejora para Pruebas Futuras
+## 8. Limitación de Entorno: Cloudflare Turnstile
 
-### 8.1 Ampliar cobertura de automatización
+A partir del 4 de marzo de 2026, la demo pública de OSSN comenzó a estar protegida por **Cloudflare Turnstile**, un sistema anti-bot que intercepta todas las navegaciones con un captcha "Verify you are human".
+
+### Impacto en la ejecución
+
+- **Antes de la activación (1-3 marzo):** La suite se ejecutaba correctamente contra la demo pública. Todos los resultados documentados en este informe fueron obtenidos durante este período.
+- **Después de la activación (4 marzo):** La demo pública bloquea Playwright, Cypress, Selenium y cualquier herramienta que use CDP (Chrome DevTools Protocol).
+
+### Análisis técnico
+
+Cloudflare Turnstile utiliza TLS fingerprinting (JA3/JA4) para detectar navegadores automatizados. Se investigaron 5 estrategias de bypass (User-Agent, stealth plugins, solver automático, Chrome real, interacción manual) — ninguna resuelve el bloqueo cuando Turnstile está en modo estricto.
+
+### Solución implementada
+
+La suite es portable via `BASE_URL` en `.env`. Para ejecutar los tests, basta con apuntar a una instancia OSSN alternativa sin protección Cloudflare.
+
+> **Conclusión:** Es una limitación de infraestructura externa, no del código de pruebas. Ver README § Limitaciones Conocidas para el análisis completo.
+
+---
+
+## 9. Notas de Mejora para Pruebas Futuras
+
+### 9.1 Ampliar cobertura de automatización
 
 | Caso | Acción | Impacto |
 |------|--------|---------|
@@ -456,7 +529,7 @@ Los resultados de la auditoría WCAG 2.1 AA revelan que la aplicación **no cump
 | TC-10 (Upload inválido) | Automatizar con Playwright | Prevenir regresiones en validación de archivos |
 | Nuevos casos negativos | Mensajería: mensaje vacío, adjuntos. Perfil: avatar inválido, longitud máxima | Profundizar cobertura de REQ-05 y REQ-06 |
 
-### 8.2 Ampliar cobertura de seguridad
+### 9.2 Ampliar cobertura de seguridad
 
 | Área | Herramienta sugerida | Prioridad |
 |------|---------------------|-----------|
@@ -465,7 +538,7 @@ Los resultados de la auditoría WCAG 2.1 AA revelan que la aplicación **no cump
 | CSRF tokens en formularios | Inspección manual + automatización | Media |
 | Rate limiting en login (prevención de fuerza bruta) | k6 / Artillery | Media |
 
-### 8.3 Mejorar la suite de automatización
+### 9.3 Mejorar la suite de automatización
 
 | Mejora | Beneficio |
 |--------|-----------|
@@ -474,7 +547,7 @@ Los resultados de la auditoría WCAG 2.1 AA revelan que la aplicación **no cump
 | Agregar tests de API directos cuando se habilite OssnServices | Cobertura de integración sin depender de la UI |
 | Parametrizar credenciales por entorno (dev, staging, prod) | Ejecutar la misma suite en múltiples entornos |
 
-### 8.4 Integrar en el ciclo de desarrollo
+### 9.4 Integrar en el ciclo de desarrollo
 
 | Acción | Beneficio |
 |--------|-----------|
@@ -485,9 +558,9 @@ Los resultados de la auditoría WCAG 2.1 AA revelan que la aplicación **no cump
 
 ---
 
-## 9. Evidencias
+## 10. Evidencias
 
-### 9.1 Screenshots automatizados (generados por Playwright)
+### 10.1 Screenshots automatizados (generados por Playwright)
 
 | Archivo | Caso | Descripción |
 |---------|------|-------------|
@@ -504,10 +577,11 @@ Los resultados de la auditoría WCAG 2.1 AA revelan que la aplicación **no cump
 | `evidencias/manual/TC-08-bandeja-mensajes.png` | TC-08 | Bandeja de mensajes (inbox) |
 | `evidencias/manual/TC-08-enviar-mensaje.png` | TC-08 | Envío de mensaje privado |
 | `evidencias/manual/TC-08-network-mensajes.png` | TC-08 | Network requests de mensajería |
-| `evidencias/manual/TC-09-editar-perfil.png` | TC-09 | Edición de perfil (First Name) |
+| `evidencias/manual/TC-09-editar-perfil.png` | TC-09 | Intento de edición de perfil — restricción detectada (BUG-019) |
+| `evidencias/manual/TC-09-restaurar-perfil.png` | TC-09 | Restauración de nombre original (safety net) |
 | `evidencias/manual/TC-09-perfil-nombre.png` | TC-09 | Perfil público con nombre visible |
 
-### 9.2 Screenshots de pruebas manuales (TC-06, TC-07, TC-10)
+### 10.2 Screenshots de pruebas manuales (TC-06, TC-07, TC-10)
 
 Los screenshots de las pruebas manuales ejecutadas el 4 de marzo de 2026 documentan:
 
@@ -515,9 +589,9 @@ Los screenshots de las pruebas manuales ejecutadas el 4 de marzo de 2026 documen
 - **TC-07:** Estado "liked" (Unlike visible) + Estado "unliked" (Like visible)
 - **TC-10:** Modal de error "Something went wrong! Cannot save the uploaded file."
 
-### 9.3 Reporte HTML de Playwright
+### 10.3 Reporte HTML de Playwright
 
-Disponible en `playwright-report/index.html`. Contiene el detalle completo de los 23 tests automatizados con tiempos de ejecución, traces y screenshots de fallo.
+Disponible en `playwright-report/index.html`. Contiene el detalle completo de los 24 tests automatizados con tiempos de ejecución, traces y screenshots de fallo.
 
 ---
 

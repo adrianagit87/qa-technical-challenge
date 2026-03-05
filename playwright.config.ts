@@ -13,6 +13,11 @@ const AUTH_FILE = 'test-results/.auth/user.json';
  * - auth-tests: Registro y login — NO dependen del setup (prueban el flujo desde cero).
  * - authenticated: Social, a11y, network, profile, messaging — usan storageState.
  *
+ * BASE_URL configurable:
+ * Por defecto apunta a la demo pública de OSSN. Si la demo está protegida
+ * por Cloudflare (ver README § Limitaciones), se puede apuntar a una instancia
+ * local o alternativa cambiando BASE_URL en el archivo .env.
+ *
  * Video: 'on' para la entrega (evidencia completa de cada test).
  * En producción usaría 'retain-on-failure' para optimizar storage.
  *
@@ -31,7 +36,7 @@ export default defineConfig({
     ['list'], // Output en consola durante ejecución
   ],
   use: {
-    baseURL: 'https://demo.opensource-socialnetwork.org',
+    baseURL: process.env['BASE_URL'] || 'https://demo.opensource-socialnetwork.org',
     video: 'on', // Graba TODOS los tests — evidencia para el reto
     screenshot: 'on', // Screenshot al final de cada test
     trace: 'retain-on-failure', // Trace completo solo cuando falla

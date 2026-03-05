@@ -19,60 +19,61 @@ test.describe('TC-01: Registro exitoso', () => {
     const testEmail = generateUniqueEmail();
     const testUsername = generateUniqueUsername();
 
-    await registerPage.navigate();
+    await test.step('Navegar a la pagina de registro', async () => {
+      await registerPage.navigate();
 
-    // Verificar que el formulario de registro carga
-    const formVisible = await registerPage.isRegistrationFormVisible();
-    expect(formVisible, 'El formulario de registro debe estar visible en /').toBeTruthy();
-
-    // Llenar todos los campos requeridos por OSSN
-    await registerPage.registerUser({
-      firstName: validUser.firstName,
-      lastName: validUser.lastName,
-      email: testEmail,
-      password: validUser.password,
-      gender: validUser.gender,
-      username: testUsername,
-      birthdate: validUser.birthdate,
+      const formVisible = await registerPage.isRegistrationFormVisible();
+      expect(formVisible, 'El formulario de registro debe estar visible en /').toBeTruthy();
     });
 
-    // Esperar a que OSSN procese el formulario
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000);
+    await test.step('Completar formulario con datos validos', async () => {
+      await registerPage.registerUser({
+        firstName: validUser.firstName,
+        lastName: validUser.lastName,
+        email: testEmail,
+        password: validUser.password,
+        gender: validUser.gender,
+        username: testUsername,
+        birthdate: validUser.birthdate,
+      });
 
-    // Verificar que NO hay mensaje de error — indicador principal de exito
-    const errorMessage = await registerPage.getErrorMessage();
-    expect(
-      errorMessage,
-      `El registro no debe mostrar errores. Error encontrado: "${errorMessage}"`
-    ).toBeNull();
+      // Esperar a que OSSN procese el formulario
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('load').catch(() => {});
+    });
 
-    // Verificar resultado: redireccion a /home O permanencia en / sin error
-    const currentUrl = page.url();
-    const wasRedirectedToHome = currentUrl.includes('/home');
-
-    if (wasRedirectedToHome) {
-      // Mejor caso: OSSN redirigió a /home (auto-login tras registro)
-      console.log('Registro exitoso: redireccion a /home');
-    } else {
-      // Segundo caso: OSSN permanece en / — verificar que no hay error visible
-      // Esto es aceptable en la demo publica
-      console.log(`Registro completado sin redireccion. URL: ${currentUrl}`);
-      const pageText = await page.textContent('body') ?? '';
-      const hasError = pageText.toLowerCase().includes('error') ||
-                       pageText.toLowerCase().includes('already taken') ||
-                       pageText.toLowerCase().includes('already exists');
+    await test.step('Verificar resultado del registro', async () => {
+      // Verificar que NO hay mensaje de error
+      const errorMessage = await registerPage.getErrorMessage();
       expect(
-        hasError,
-        'No debe haber mensajes de error visibles en la pagina'
-      ).toBeFalsy();
-    }
+        errorMessage,
+        `El registro no debe mostrar errores. Error encontrado: "${errorMessage}"`
+      ).toBeNull();
 
-    await page.screenshot({ path: 'evidencias/manual/TC-01-registro-exitoso.png', fullPage: true });
+      // Verificar resultado: redireccion a /home O permanencia en / sin error
+      const currentUrl = page.url();
+      const wasRedirectedToHome = currentUrl.includes('/home');
 
-    test.info().annotations.push({
-      type: 'test-data',
-      description: `Email: ${testEmail}, Username: ${testUsername}`,
+      if (wasRedirectedToHome) {
+        console.log('Registro exitoso: redireccion a /home');
+      } else {
+        console.log(`Registro completado sin redireccion. URL: ${currentUrl}`);
+        const pageText = await page.textContent('body') ?? '';
+        const hasError = pageText.toLowerCase().includes('error') ||
+                         pageText.toLowerCase().includes('already taken') ||
+                         pageText.toLowerCase().includes('already exists');
+        expect(
+          hasError,
+          'No debe haber mensajes de error visibles en la pagina'
+        ).toBeFalsy();
+      }
+
+      await page.screenshot({ path: 'evidencias/manual/TC-01-registro-exitoso.png', fullPage: true });
+
+      test.info().annotations.push({
+        type: 'test-data',
+        description: `Email: ${testEmail}, Username: ${testUsername}`,
+      });
     });
   });
 });

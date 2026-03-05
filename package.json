@@ -16,8 +16,9 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.8.0",
     "@playwright/test": "^1.42.0",
+    "@types/node": "^25.3.3",
     "dotenv": "^17.3.1"
   },
-  "author": "Adriana Martínez",
+  "author": "Adriana Troche",
   "license": "MIT"
 }

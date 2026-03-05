@@ -32,7 +32,6 @@ jobs:
 
       - name: Run tests
         run: npx playwright test
-        continue-on-error: true
         env:
           DEMO_USERNAME: ${{ secrets.DEMO_USERNAME || 'administrator' }}
           DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD || 'administrator' }}

@@ -30,7 +30,7 @@ test.describe('TC-02: Registro con datos invalidos', () => {
     });
 
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('load').catch(() => {});
 
     // OSSN debe rechazar password < 5 chars y mostrar error
     const currentUrl = page.url();
@@ -62,7 +62,7 @@ test.describe('TC-02: Registro con datos invalidos', () => {
     await registerPage.clickCreateAccount();
 
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('load').catch(() => {});
 
     const currentUrl = page.url();
     const stayedOnRegister = currentUrl.endsWith('/') || currentUrl.includes('register') || !currentUrl.includes('/home');
@@ -91,7 +91,7 @@ test.describe('TC-02: Registro con datos invalidos', () => {
     });
 
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('load').catch(() => {});
 
     // OSSN debe rechazar email sin formato valido
     const currentUrl = page.url();

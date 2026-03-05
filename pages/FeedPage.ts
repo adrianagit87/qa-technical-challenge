@@ -66,9 +66,18 @@ export class FeedPage extends BasePage {
   async submitPost(): Promise<void> {
     const btn = this.page.locator(this.postSubmitBtn).first();
     await btn.click();
-    // Esperar a que OSSN procese el post y recargue el feed
+    // Esperar a que OSSN procese el post: interceptar la response del backend
+    // o esperar a que el feed se recargue con nuevo contenido
+    try {
+      await this.page.waitForResponse(
+        response => response.url().includes('/action/') && response.status() < 400,
+        { timeout: 10000 }
+      );
+    } catch {
+      // Fallback: esperar recarga del DOM si no se interceptó la response
+      await this.page.waitForLoadState('domcontentloaded');
+    }
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(3000);
   }
 
   /**

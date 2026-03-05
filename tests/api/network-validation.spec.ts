@@ -72,10 +72,10 @@ test.describe('Validacion de Network Requests', () => {
 
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('load').catch(() => {});
     await page.goto('/login');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('load').catch(() => {});
 
     console.log(`\n=== Network: Server Errors en páginas públicas ===`);
     if (errors.length > 0) {
