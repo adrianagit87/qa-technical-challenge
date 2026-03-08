@@ -38,7 +38,7 @@ test.describe('TC-01: Registro exitoso', () => {
       });
 
       await page.waitForLoadState('domcontentloaded');
-      await page.waitForLoadState('load').catch(() => {});
+      await page.waitForLoadState('load').catch(() => { });
     });
 
     await test.step('Verificar resultado del registro', async () => {
@@ -56,14 +56,35 @@ test.describe('TC-01: Registro exitoso', () => {
         console.log('Registro exitoso: redireccion a /home');
       } else {
         console.log(`Registro completado sin redireccion. URL: ${currentUrl}`);
-        const pageText = await page.textContent('body') ?? '';
-        const hasError = pageText.toLowerCase().includes('error') ||
-                         pageText.toLowerCase().includes('already taken') ||
-                         pageText.toLowerCase().includes('already exists');
-        expect(
-          hasError,
-          'No debe haber mensajes de error visibles en la pagina'
-        ).toBeFalsy();
+
+        // OSSN muestra un mensaje de éxito cuando el registro funciona correctamente
+        // pero no redirige a /home (requiere activación por email).
+        // Usar innerText (solo texto visible) en vez de textContent (que incluye
+        // scripts y elementos ocultos con cadenas como "ossn-signup-errors").
+        const visibleText = (await page.innerText('body')).toLowerCase();
+
+        const isSuccessMessage =
+          visibleText.includes('account has been registered') ||
+          visibleText.includes('cuenta ha sido registrada') ||
+          visibleText.includes('activation email');
+
+        if (isSuccessMessage) {
+          console.log('Registro exitoso: mensaje de activación por email detectado');
+        } else {
+          const hasError = visibleText.includes('already taken') ||
+            visibleText.includes('already exists') ||
+            visibleText.includes('username is not valid') ||
+            visibleText.includes('email is not valid');
+
+          // Verificar también el contenedor de errores específico de OSSN
+          const ossnErrorVisible = await page.locator('#ossn-signup-errors')
+            .isVisible({ timeout: 2000 }).catch(() => false);
+
+          expect(
+            hasError || ossnErrorVisible,
+            'No debe haber mensajes de error visibles en la pagina'
+          ).toBeFalsy();
+        }
       }
 
       await page.screenshot({ path: 'evidencias/manual/TC-01-registro-exitoso.png', fullPage: true });
